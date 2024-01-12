@@ -2,10 +2,45 @@ from fastapi import FastAPI, HTTPException
 import requests
 import json
 import pandas as pd
-from .Utils import read_and_process_data
-
+from src.Utils import read_and_process_data
+from typing import List
+from deltalake.writer import write_deltalake
 
 app = FastAPI()
+
+source_file = "src/data/downloaded_data.json"
+
+def get_countryterritoryCode(df:pd.DataFrame)-> List:
+    valid_country_territory_Code = df["countryterritoryCode"].unique()
+    return valid_country_territory_Code.tolist()
+
+
+def rolling_five_days(countryterritoryCode:str=None)-> pd.DataFrame:
+
+    df = read_and_process_data(source_file)
+    valid_country_territory_Code = get_countryterritoryCode(df)
+
+    if countryterritoryCode is None:
+        print("processing all data")
+        # apply row number window function to get the last 5 days of data per countryterritoryCode ordered by dateRep descending
+        df = df.sort_values(by="dateRep", ascending=False)
+        df["row_number"] = df.groupby("countryterritoryCode").cumcount() + 1
+        df = df[df["row_number"] <= 5]
+        return df
+    else:
+        print("processing data for countryterritoryCode"),
+        if countryterritoryCode not in valid_country_territory_Code:
+            raise HTTPException(status_code=404, detail=f"Invalid countryterritoryCode: {countryterritoryCode}. Please enter a valid countryterritoryCode from the following list: {valid_country_territory_Code}")
+        df = df[df["countryterritoryCode"] == countryterritoryCode]
+        df = df.sort_values(by="dateRep", ascending=False)
+        df = df.head(5)
+        return df
+
+def total_cases_per_territory(source_file:str)-> pd.DataFrame:
+    df = read_and_process_data(source_file)
+    df = df.groupby("countryterritoryCode").sum("cases")
+    df = df.reset_index()[[ "countryterritoryCode", "cases"]]
+    return df
 
 
 # Endpoint to download JSON data from a URL and save it to a file
@@ -18,9 +53,9 @@ async def download_json():
 
         # Assuming the content is JSON, you can modify this logic accordingly
         data = response.json()
-
-        # Save the JSON data to a file
-        with open("downloaded_data.json", "w") as file:
+        #TODO: fix dir and file name
+        # Save the JSON data to a file 
+        with open(source_file, "w") as file:
             json.dump(data, file)
 
         return {"message": "JSON data downloaded and saved successfully"}
@@ -31,39 +66,23 @@ async def download_json():
 
     
 @app.get("/rolling-five-days/{countryterritoryCode}")
-async def rolling_five_days(countryterritoryCode: str):
-
-    #throw error if countryterritoryCode is None
-    if countryterritoryCode is None:
-        raise HTTPException(status_code=404, detail=f"Invalid countryterritoryCode: {countryterritoryCode}")
+async def get_rolling_five_days(countryterritoryCode: str):
 
     try:
-        df = read_and_process_data("downloaded_data.json")
-        valid_country_territory_Code = df["countryterritoryCode"].unique()
-        if countryterritoryCode not in valid_country_territory_Code:
-            raise HTTPException(status_code=404, detail=f"Invalid countryterritoryCode: {countryterritoryCode}")
-        df = df[df["countryterritoryCode"] == countryterritoryCode]
-        df = df.sort_values(by="dateRep", ascending=False)
-        df = df.head(5)
+        df = rolling_five_days(countryterritoryCode)
         df = df.to_dict(orient="records")
-
         return {"status": "success", 
                 "message": {"endpoint" :  "rolling-five-days", "description" : "Last five days of data per Territory"}, 
                 "timestamp": pd.Timestamp.now(), "data": df
                 }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing data: {str(e)}. Please select Territory from the list: {(valid_country_territory_Code)}")
-    
+        raise HTTPException(status_code=500, detail=f"Error processing data: {str(e)}.")
 
 @app.get("/total-cases/")
-async def total_cases():
+async def get_total_cases_territory():
     try:
-        df = read_and_process_data("downloaded_data.json")
-        #grouping by countryterritoryCode and summing the cases
-        df = df.groupby("countryterritoryCode").sum("cases")
-        #remove countryterritoryCode from index and select only the cases and countryterritoryCode column
-        df = df.reset_index()[[ "countryterritoryCode", "cases"]]
+        df = total_cases_per_territory(source_file)
         df = df.to_dict(orient="records")
         # return data in application-json format with status, message,timestamp,data
         return {"status": "success",
@@ -72,7 +91,28 @@ async def total_cases():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing data: {str(e)}") 
-    
 
 
+# Endpoint to store the data in SQLALCHEMY
+@app.get("/store-data/}")
+async def store_data():
+    try:
+        total_cases_df = total_cases_per_territory(source_file)
+        total_cases_df["load_ts"] = pd.Timestamp.now()
+   
+        write_deltalake("src/data/total_cases.delta", total_cases_df,mode="overwrite")
 
+        rolling_five_days_df = rolling_five_days()
+        #add current date column to rolling_five_days_df
+        rolling_five_days_df["load_ts"] = pd.Timestamp.now()
+
+        write_deltalake("src/data/rolling_five_days.delta", rolling_five_days_df,mode="append")
+        return {"status": "success", "message": "Data stored successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error storing data: {str(e)}")
+
+# execute the main function
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="127.0.0.1", port=8000)
