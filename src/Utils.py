@@ -1,6 +1,7 @@
-import pandas as pd 
+import pandas as pd
+from deltalake.writer import write_deltalake
 
-def read_and_process_data(source_file:str) -> pd.DataFrame:
+def read_json_file_preprocess_data(source_file:str) -> pd.DataFrame:
     """
     This function reads the json file and returns a pandas dataframe
     """
@@ -17,3 +18,14 @@ def read_and_process_data(source_file:str) -> pd.DataFrame:
         return df
     except Exception as e:
         raise Exception(f"Error processing data: {str(e)}")
+
+def write_to_delta_lake(df: pd.DataFrame,target_table:str,mode:str="overwrite"):
+    try:
+
+        #add load_date column to the dataframe from current timestamp 
+        df["load_date"] = pd.Timestamp.now().strftime("%Y-%m-%d")
+        
+        write_deltalake(target_table, df, mode=mode)
+ 
+    except Exception as e:
+        raise Exception(f"Error writing to delta lake: {str(e)}")
