@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 import requests
 import json
 import pandas as pd
-from src.Utils import read_json_file_preprocess_data,write_to_delta_lake
+from src.Utils import read_json_file_preprocess_data, write_to_delta_lake
 from typing import List
 import os
 import pathlib
@@ -11,13 +11,16 @@ app = FastAPI()
 
 
 root_dir = pathlib.Path(__file__).parent.parent.absolute()
-source_file = os.path.join(root_dir,"data/downloaded_data")
-total_cases_delta_table =  os.path.join(root_dir,"data/total_cases.delta")
-rolling_last_five_days_delta_table =  os.path.join(root_dir,"data/rolling_last_five_days.delta")
+source_file = os.path.join(root_dir, "data/downloaded_data")
+source_json_file = os.path.join(root_dir, "data/downloaded_data.json")
+total_cases_delta_table = os.path.join(root_dir, "data/total_cases.delta")
+rolling_last_five_days_delta_table = os.path.join(
+    root_dir, "data/rolling_last_five_days.delta"
+)
 
 
 def get_countryterritoryCode(df: pd.DataFrame) -> List:
-    #ADD DOCSTRING
+    # ADD DOCSTRING
     """
     This function returns a list of valid countryterritoryCode
     param: df: pandas dataframe
@@ -40,7 +43,9 @@ def rolling_five_days(
         )
 
         df = df[df["row_number"] <= 5][["countryterritoryCode", "dateRep", "cases"]]
-        df = df.sort_values(by="countryterritoryCode", ascending=False).reset_index(drop=True)
+        df = df.sort_values(by="countryterritoryCode", ascending=False).reset_index(
+            drop=True
+        )
         return df
     else:
         print("processing data for countryterritoryCode"),
@@ -60,18 +65,36 @@ def rolling_five_days(
 
 
 def total_cases_per_territory(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.groupby("countryterritoryCode").sum("cases").rename(columns={"cases": "total_cases"})
+    df = (
+        df.groupby("countryterritoryCode")
+        .sum("cases")
+        .rename(columns={"cases": "total_cases"})
+    )
     df = df.reset_index()[["countryterritoryCode", "total_cases"]]
     return df
 
 
+# endpoint to home url show home page with list of available endpoints like rolling-five-days, total-cases, store-data in table
+@app.get("/")
+async def home():
+    output = {
+        "message": """Welcome to the COVID-19 API.Please use the following endpoints to access the data""",
+        "endpoints": [
+            "/docs : This really cool shows the documentation for the API with ability to test the endpoints",
+            "/download/json or /download/csv : This endpoint downloads the data from the source and saves it to a file"
+            "/rolling-five-days : This endpoint returns the last five days of data per Territory",
+            "/total-cases : This endpoint returns the total cases per Territory",
+            "/store-data : This endpoint stores the data in delta lake ",
+        ],
+    }
+    return output
+
 
 # Endpoint to download JSON data from a URL and save it to a file
 @app.get("/download/{data_format}")
-async def download_data_file(data_format:str):
-    url = (
-        f"https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/{data_format}"
-    )
+async def download_data_file(data_format: str):
+    url = f"https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/{data_format}"
+    global source_file
 
     try:
         response = requests.get(url)
@@ -82,25 +105,29 @@ async def download_data_file(data_format:str):
                 json.dump(data, file)
         elif data_format == "csv":
             data = response.text
-            with open(source_file+".csv", "w") as file:
+            with open(source_file + ".csv", "w") as file:
                 file.write(data)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid data format: {data_format}. Please enter a valid data format: json or csv",
+            )
 
-
-
-        return {"message": f"{data_format} data downloaded and saved successfully"}
+        return {"message": f"data downloaded and saved successfully to {source_file}"}
     except requests.RequestException as e:
         raise HTTPException(
-            status_code=500, detail=f"Error downloading JSON data: {str(e)}"
+            status_code=500, detail=f"Error downloading {source_file} data: {str(e)}"
         )
 
 
 @app.get("/rolling-five-days/{countryterritoryCode}")
 async def get_rolling_five_days(countryterritoryCode: str):
     try:
-        df = read_json_file_preprocess_data(source_file)
+        df = read_json_file_preprocess_data(source_json_file)
         df = rolling_five_days(df, countryterritoryCode)
         df = df.to_dict(orient="records")
         return {
+            "Content-Type": "application/json",
             "status": "success",
             "message": {
                 "endpoint": "rolling-five-days",
@@ -116,16 +143,17 @@ async def get_rolling_five_days(countryterritoryCode: str):
 
 @app.get("/total-cases/")
 async def get_total_cases_territory():
-    #add docstring
+    # add docstring
     """
     This function returns the total cases per territory
     """
     try:
-        df = read_json_file_preprocess_data(source_file)
+        df = read_json_file_preprocess_data(source_json_file)
         df = total_cases_per_territory(df)
         df = df.to_dict(orient="records")
         # return data in application-json format with status, message,timestamp,data
         return {
+            "Content-Type": "application/json",
             "status": "success",
             "message": {
                 "endpoint": "total-cases",
@@ -136,29 +164,35 @@ async def get_total_cases_territory():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing data: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing data from file : {source_file}: {str(e)} ",
+        )
 
 
 # Endpoint to store the data in SQLALCHEMY
 @app.get("/store-data/")
 async def store_data():
-    #add docstring
+    # add docstring
     """
     This function stores the data in delta lake
     """
     try:
-        df = read_json_file_preprocess_data(source_file)
+        df = read_json_file_preprocess_data(source_json_file)
         total_cases_df = total_cases_per_territory(df)
         rolling_last_five_days_df = rolling_five_days(df)
         write_to_delta_lake(df=total_cases_df, target_table=total_cases_delta_table)
-        write_to_delta_lake(df=rolling_last_five_days_df, target_table=rolling_last_five_days_delta_table)
+        write_to_delta_lake(
+            df=rolling_last_five_days_df,
+            target_table=rolling_last_five_days_delta_table,
+        )
         return {"status": "success", "message": "Data stored successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error storing data: {str(e)}")
 
 
-
 # execute the main function
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="127.0.0.1", port=8000)

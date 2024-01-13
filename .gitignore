@@ -4,3 +4,4 @@ __pycache__
 /metastore_db/
 derby.log
 .vscode/settings.json
+airflow/
