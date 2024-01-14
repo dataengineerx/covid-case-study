@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  app_launch:
+    build: .
+    image: covid-case-study:0.1
+    ports:
+    - "8000:8000"
+    volumes:
+    - .:/app

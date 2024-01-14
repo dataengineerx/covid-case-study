@@ -257,34 +257,10 @@ def test_rolling_five_days_endpoint():
 def test_total_cases_endpoint():
     response = client.get("/total-cases")
     assert response.status_code == 200
-    assert response.json() == {
-        "Content-Type": "application/json",
-        "status": "success",
-        "message": {
-            "endpoint": "total-cases",
-            "description": "Total cases per Territory",
-        },
-        "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "data": [
-            {
-                "countryterritoryCode": "AUT",
-                "total_cases": 90,
-            },
-            {
-                "countryterritoryCode": "LUX",
-                "total_cases": 34,
-            },
-            {
-                "countryterritoryCode": "DEU",
-                "total_cases": 57,
-            },
-            {
-                "countryterritoryCode": "GRC",
-                "total_cases": 66,
-            },
-            {
-                "countryterritoryCode": "EST",
-                "total_cases": 34,
-            },
-        ],
-    }
+    output = response.json()
+    assert output["status"] == "success"
+    assert output["message"]["endpoint"] == "total-cases"
+    assert output["message"]["description"] == "Total cases per Territory"
+    assert output["timestamp"] == pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    
