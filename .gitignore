@@ -1,2 +1,8 @@
 __pycache__
-*.delta
+/data/
+/.vscode/
+/metastore_db/
+derby.log
+.vscode/settings.json
+airflow/
+.env
