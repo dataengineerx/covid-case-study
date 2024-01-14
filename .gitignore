@@ -5,3 +5,4 @@ __pycache__
 derby.log
 .vscode/settings.json
 airflow/
+.env
