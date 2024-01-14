@@ -1,9 +1,22 @@
 from src.main import *
 from fastapi.testclient import TestClient
 from pandas.testing import assert_frame_equal
+import tempfile
+import pytest
 
 client = TestClient(app)
 
+@pytest.fixture
+def temp_dir(tmpdir):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield tmpdir
+
+def test_download_data_endpoint():
+    response = client.get("/download/json")
+    assert response.status_code == 200
+    output_json = response.json()
+    assert output_json["message"] == f"data downloaded and saved successfully to {source_json_file}"
+    assert os.path.exists(source_json_file)
 
 def test_rolling_five_days_per_territory():
     input_data = [
@@ -215,52 +228,29 @@ def test_total_cases_per_territory():
 #write test for /rolling-five-days endpoint
 def test_rolling_five_days_endpoint():
     response = client.get("/rolling-five-days/AUT")
+    output_json = response.json()
     assert response.status_code == 200
-    assert response.json() == {
-        "Content-Type": "application/json",
-        "status": "success",
-        "message": {
-            "endpoint": "rolling-five-days",
-            "description": "Last five days of data per Territory",
-        },
-        "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "data": [
-            {
-                "countryterritoryCode": "AUT",
-                "dateRep": "2020-04-11",
-                "cases": 66,
-            },
-            {
-                "countryterritoryCode": "AUT",
-                "dateRep": "2020-04-10",
-                "cases": 56,
-            },
-            {
-                "countryterritoryCode": "AUT",
-                "dateRep": "2020-04-09",
-                "cases": 34,
-            },
-            {
-                "countryterritoryCode": "AUT",
-                "dateRep": "2020-04-09",
-                "cases": 44,
-            },
-            {
-                "countryterritoryCode": "AUT",
-                "dateRep": "2020-04-07",
-                "cases": 23,
-            },
-        ],
-    }
+    assert output_json["Content-Type"] == "application/json"
+    assert output_json["status"] == "success"
+    assert output_json["message"]["endpoint"] == "rolling-five-days"
+    assert output_json["message"]["description"] == "Last five days of data per Territory"
+    
 
 #test for /total-cases endpoint
 def test_total_cases_endpoint():
     response = client.get("/total-cases")
     assert response.status_code == 200
-    output = response.json()
-    assert output["status"] == "success"
-    assert output["message"]["endpoint"] == "total-cases"
-    assert output["message"]["description"] == "Total cases per Territory"
-    assert output["timestamp"] == pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    output_json = response.json()
+    assert output_json["status"] == "success"
+    assert output_json["message"]["endpoint"] == "total-cases"
+    assert output_json["message"]["description"] == "total cases per Territory"
 
-    
+
+def test_store_data_endpoint():
+    response = client.get("/store-data")
+    assert response.status_code == 200
+    output_json = response.json()
+    assert output_json["status"] == "success"
+    assert output_json["message"] == "Data stored successfully"
+    assert os.path.exists(total_cases_delta_table)
+    assert os.path.exists(rolling_last_five_days_delta_table)

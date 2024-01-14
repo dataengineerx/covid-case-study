@@ -1,8 +1,4 @@
-#docker build ./Dockerfile
-
-docker-compose build 
-docker compose up
-
+#!/bin/bash
 
 poetry run pytest test/
 if [ $? -eq 0 ]; then
@@ -12,25 +8,14 @@ else
     exit 1
 fi
 
-curl -X 'GET' \
-  'http://localhost:8000/download/json' \
-  -H 'accept: application/json'
+#docker build ./Dockerfile7
 
-curl -X 'GET' \
-  'http://localhost:8000/rolling-five-days/c' \
-  -H 'accept: application/json'
-
-curl -X 'GET' \
-  'http://localhost:8000/total-cases/' \
-  -H 'accept: application/json'
-
-curl -X 'GET' \
-  'http://localhost:8000/store-data/' \
-  -H 'accept: application/json'
+docker-compose build 
+docker compose up &
 
 
-poetry run airflow standalone --port 8080
+poetry run airflow standalone &
 
-airflow connections add fastapi_get --conn-host http://localhost --conn-port 8000 --conn-type http
+poetry run airflow connections add fastapi_get --conn-host http://localhost --conn-port 8000 --conn-type http
 
-airflow dags trigger store_covid_delta_dataset
+poetry run airflow dags trigger store_covid_delta_dataset
