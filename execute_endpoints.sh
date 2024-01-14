@@ -6,14 +6,18 @@ if [ $# -eq 0 ]
     echo "No arguments supplied"
     echo "Usage execute_endpoint.sh  countryterritoryCode"
     exit 1
+  else
+    countryterritoryCode=$1
 fi
+echo $countryterritoryCode
+
 
 curl -X 'GET' \
   'http://localhost:8000/download/json' \
   -H 'accept: application/json'
 
 curl -X 'GET' \
-  'http://localhost:8000/rolling-five-days/' \
+  'http://localhost:8000/rolling-five-days/'$countryterritoryCode \
   -H 'accept: application/json'
 
 curl -X 'GET' \
