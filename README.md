@@ -4,6 +4,9 @@ The project is based on covid case study. The source data is fetched from websit
 The data is then cleaned and transformed using pandas and numpy. The data is then loaded into delta table as persistent storage.
 There are few endpoints exposed which initially download covid cases data from [here](https://www.ecdc.europa.eu/en/publications-data/data-daily-new-cases-covid-19-eueea-country)
 
+## Design Architecture
+
+![Alt text](DESIGN_ARCHITECTURE.png)
 
 ## Technologies Used
 Ubuntu/Windows WSL : Liniux OS

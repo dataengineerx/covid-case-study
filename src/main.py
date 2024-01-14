@@ -9,6 +9,8 @@ import pathlib
 
 app = FastAPI()
 
+if not os.path.exists("./data"):
+    os.makedirs("./data")
 
 root_dir = pathlib.Path(__file__).parent.parent.absolute()
 source_file = os.path.join(root_dir, "data/downloaded_data")
@@ -113,7 +115,7 @@ async def download_data_file(data_format: str):
                 detail=f"Invalid data format: {data_format}. Please enter a valid data format: json or csv",
             )
 
-        return {"message": f"data downloaded and saved successfully to {source_file}"}
+        return {"message": f"data downloaded and saved successfully to {source_json_file}"}
     except requests.RequestException as e:
         raise HTTPException(
             status_code=500, detail=f"Error downloading {source_file} data: {str(e)}"
