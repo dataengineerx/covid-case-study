@@ -12,6 +12,7 @@ app = FastAPI()
 if not os.path.exists("./data"):
     os.makedirs("./data")
 
+
 root_dir = pathlib.Path(__file__).parent.parent.absolute()
 source_file = os.path.join(root_dir, "data/downloaded_data")
 source_json_file = os.path.join(root_dir, "data/downloaded_data.json")
@@ -22,7 +23,7 @@ rolling_last_five_days_delta_table = os.path.join(
 
 
 def get_countryterritoryCode(df: pd.DataFrame) -> List:
-    # ADD DOCSTRING
+
     """
     This function returns a list of valid countryterritoryCode
     param: df: pandas dataframe
@@ -32,41 +33,49 @@ def get_countryterritoryCode(df: pd.DataFrame) -> List:
     valid_country_territory_Code = df["countryterritoryCode"].unique()
     return valid_country_territory_Code.tolist()
 
-
 def rolling_five_days(
     df: pd.DataFrame, countryterritoryCode: str = None
 ) -> pd.DataFrame:
+    """
+    This function returns the last five days of cases data per Territory
+    param: df: pandas dataframe
+    param: countryterritoryCode: countryterritoryCode
+    return: pandas dataframe
+    """
+
     valid_country_territory_Code = get_countryterritoryCode(df)
     if countryterritoryCode is None:
-        print("processing all data")
-        # apply window function to get the last 5 days of data per countryterritoryCode ordered by dateRep descending
-        df["row_number"] = df.groupby("countryterritoryCode")["dateRep"].rank(
-            method="dense", ascending=False
-        )
 
-        df = df[df["row_number"] <= 5][["countryterritoryCode", "dateRep", "cases"]]
-        df = df.sort_values(by="countryterritoryCode", ascending=False).reset_index(
-            drop=True
-        )
+        print("processing all data")
+
+        df["dense_rank"] = df.groupby("countryterritoryCode")["dateRep"].rank(method="dense", ascending=False)
+        df = df[df["dense_rank"] <= 5][["countryterritoryCode", "dateRep", "cases"]]
+        df = df.sort_values(by="countryterritoryCode", ascending=False).reset_index(drop=True)
         return df
     else:
-        print("processing data for countryterritoryCode"),
+        print(f"processing data for {countryterritoryCode}"),
         if countryterritoryCode not in valid_country_territory_Code:
             raise HTTPException(
                 status_code=404,
-                detail=f"Invalid countryterritoryCode: {countryterritoryCode}. Please enter a valid countryterritoryCode from the following list: {valid_country_territory_Code}",
+                detail=f"""Invalid countryterritoryCode: {countryterritoryCode}
+                Please enter a valid  from the following list: {valid_country_territory_Code}""",
             )
+        
+        
         df = df[df["countryterritoryCode"] == countryterritoryCode]
-        df["row_number"] = df.groupby("countryterritoryCode")["dateRep"].rank(
-            method="dense", ascending=False
-        )
-
-        df = df[df["row_number"] <= 5][["countryterritoryCode", "dateRep", "cases"]]
+        df["dense_rank"] = df.groupby("countryterritoryCode")["dateRep"].rank(method="dense", ascending=False)
+        df = df[df["dense_rank"] <= 5][["countryterritoryCode", "dateRep", "cases"]]
         df = df.sort_values(by="dateRep", ascending=False).reset_index(drop=True)
         return df
 
 
 def total_cases_per_territory(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    This function returns the total cases per Territory
+    param: df: pandas dataframe
+    return: pandas dataframe
+    """
+
     df = (
         df.groupby("countryterritoryCode")
         .sum("cases")
@@ -76,10 +85,11 @@ def total_cases_per_territory(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# endpoint to home url show home page with list of available endpoints like rolling-five-days, total-cases, store-data in table
+
 @app.get("/")
-async def home():
-    output = {
+async def home()-> dict:
+
+    return {
         "message": """Welcome to the COVID-19 API.Please use the following endpoints to access the data""",
         "endpoints": [
             "/docs : This really cool shows the documentation for the API with ability to test the endpoints",
@@ -89,12 +99,16 @@ async def home():
             "/store-data : This endpoint stores the data in delta lake ",
         ],
     }
-    return output
 
 
 # Endpoint to download JSON data from a URL and save it to a file
 @app.get("/download/{data_format}")
-async def download_data_file(data_format: str):
+async def download_data_file(data_format: str) -> dict:
+    """
+    This endpoint downloads the data from the source and saves it to a file
+    param: data_format: data format to download the data in. Valid values are json or csv
+    return: dict
+    """
     url = f"https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/{data_format}"
     global source_file
 
@@ -124,9 +138,16 @@ async def download_data_file(data_format: str):
 
 @app.get("/rolling-five-days/{countryterritoryCode}")
 async def get_rolling_five_days(countryterritoryCode: str):
+    """
+    This Endpoint returns the last five days of data per Territory
+    param: countryterritoryCode: countryterritoryCode
+    return: dict
+    """
+
     try:
         df = read_json_file_preprocess_data(source_json_file)
         df = rolling_five_days(df, countryterritoryCode)
+        df["dateRep"] = df["dateRep"].astype(str)
         df = df.to_dict(orient="records")
         return {
             "Content-Type": "application/json",
@@ -145,15 +166,16 @@ async def get_rolling_five_days(countryterritoryCode: str):
 
 @app.get("/total-cases/")
 async def get_total_cases_territory():
-    # add docstring
     """
-    This function returns the total cases per territory
+    This Endpoint returns the total cases per Territory
+    return: dict
     """
+
     try:
         df = read_json_file_preprocess_data(source_json_file)
         df = total_cases_per_territory(df)
         df = df.to_dict(orient="records")
-        # return data in application-json format with status, message,timestamp,data
+
         return {
             "Content-Type": "application/json",
             "status": "success",
@@ -175,9 +197,9 @@ async def get_total_cases_territory():
 # Endpoint to store the data in SQLALCHEMY
 @app.get("/store-data/")
 async def store_data():
-    # add docstring
     """
-    This function stores the data in delta lake
+    This endpoint stores the data in delta lake
+    return: dict
     """
     try:
         df = read_json_file_preprocess_data(source_json_file)

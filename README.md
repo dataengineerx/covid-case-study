@@ -17,6 +17,7 @@ poetry : poetry is used to manage dependencies
 airflow : airflow is used to schedule the job
 Pandas : Pandas is used to clean and transform the data
 Pytest : Pytest is used to write unit test cases
+copilot : Optionally for better documentation
 
 ## Running the project locally 
 
