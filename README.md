@@ -26,11 +26,11 @@ Pytest : Pytest is used to write unit test cases
     'http://localhost:8000/<endpoint>' \
     -H 'accept: application/json'
 
-    /download/json : This endpoint is used to download json data from http source and save it to data dir 
-    /docs : This really cool shows the documentation for the API with ability to test the endpoints
-    /rolling-five-days : This endpoint returns the last five days of data per Territory",
-    /total-cases : This endpoint returns the total cases per Territory
-    /store-data : This endpoint stores the data in delta lake
+- /download/json : This endpoint is used to download json data from http source and save it to data dir 
+- /docs : This really cool shows the documentation for the API with ability to test the endpoints
+- /rolling-five-days : This endpoint returns the last five days of data per Territory",
+- /total-cases : This endpoint returns the total cases per Territory
+- /store-data : This endpoint stores the data in delta lake
 
 
 
