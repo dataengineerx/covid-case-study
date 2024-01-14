@@ -1,8 +1,8 @@
 #docker build ./Dockerfile
 
-docker build . -t covid-case-study:0.1
+docker-compose build 
+docker compose up
 
-docker run -it  -p 80:80  covid-case-study:0.1 
 
 poetry run pytest test/
 if [ $? -eq 0 ]; then
@@ -12,27 +12,25 @@ else
     exit 1
 fi
 
-#docker build ./Dockerfile
-
-docker build . -t covid-case-study:0.1
-
-docker run -it  -p 80:80  covid-case-study:0.1 
-
 curl -X 'GET' \
-  'http://localhost/download/json' \
+  'http://localhost:8000/download/json' \
   -H 'accept: application/json'
 
 curl -X 'GET' \
-  'http://localhost/rolling-five-days/c' \
+  'http://localhost:8000/rolling-five-days/c' \
   -H 'accept: application/json'
 
 curl -X 'GET' \
-  'http://localhost/total-cases/' \
+  'http://localhost:8000/total-cases/' \
   -H 'accept: application/json'
 
 curl -X 'GET' \
-  'http://localhost/store-data/' \
+  'http://localhost:8000/store-data/' \
   -H 'accept: application/json'
 
-container_id=$(docker ps -a | grep covid-case-study | awk '{print $1}' | head -n 1)
-docker cp $container_id:/app/data data
+
+poetry run airflow standalone --port 8080
+
+airflow connections add fastapi_get --conn-host http://localhost --conn-port 8000 --conn-type http
+
+airflow dags trigger store_covid_delta_dataset

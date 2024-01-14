@@ -47,6 +47,7 @@ Pytest : Pytest is used to write unit test cases
     #job is scheduled every monday and thursday at 00:00 UTC every week using airflow scheduler
     airflow dags list
     airflow dags trigger store_covid_delta_dataset
+PS: Make sure to create http connection to localhost in airflow
 
 ## Locally deployment 
     sh deploy.sh 

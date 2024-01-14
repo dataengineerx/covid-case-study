@@ -28,7 +28,7 @@ with DAG(
     # define the sensor
     is_api_available = HttpSensor(
         task_id="is_api_available",
-        http_conn_id="api_get",
+        http_conn_id="fastapi_get",
         endpoint="/",
         response_check=lambda response: True if check(response) is True else False,
         poke_interval=1,
@@ -38,7 +38,7 @@ with DAG(
     #download source data 
     download_data_file = SimpleHttpOperator(
         task_id="download_data_file",
-        http_conn_id="api_get",
+        http_conn_id="fastapi_get",
         endpoint="download/json",
         method="GET",
         response_filter=lambda response: json.loads(response.text),
@@ -48,7 +48,7 @@ with DAG(
     # define the operator
     get_data = SimpleHttpOperator(
         task_id="get_data",
-        http_conn_id="api_get",
+        http_conn_id="fastapi_get",
         endpoint="store-data",
         method="GET",
         response_filter=lambda response: json.loads(response.text),
