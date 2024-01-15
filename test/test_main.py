@@ -90,7 +90,7 @@ def test_rolling_five_days_per_territory():
         },
     ]
 
-    output_df = rolling_five_days(pd.DataFrame(input_data), "AUT")
+    output_df = rolling_five_days(pd.DataFrame(input_data), "AUT")[["countryterritoryCode", "dateRep", "cases"]]
 
     expected_df = pd.DataFrame(expected_data)
 
@@ -177,7 +177,7 @@ def test_rolling_five_days_all_territories():
         
     ]
 
-    output_df = rolling_five_days(pd.DataFrame(input_data))
+    output_df = rolling_five_days(pd.DataFrame(input_data))[["countryterritoryCode", "dateRep", "cases"]]
 
     expected_df = pd.DataFrame(expected_data)
 
