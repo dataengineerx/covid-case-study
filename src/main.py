@@ -49,7 +49,7 @@ def rolling_five_days(
         print("processing all data")
 
         df["dense_rank"] = df.groupby("countryterritoryCode")["dateRep"].rank(method="dense", ascending=False)
-        df = df[df["dense_rank"] <= 5][["countryterritoryCode", "dateRep", "cases"]]
+        df = df[df["dense_rank"] <= 5]
         df = df.sort_values(by="countryterritoryCode", ascending=False).reset_index(drop=True)
         return df
     else:
@@ -64,7 +64,7 @@ def rolling_five_days(
         
         df = df[df["countryterritoryCode"] == countryterritoryCode]
         df["dense_rank"] = df.groupby("countryterritoryCode")["dateRep"].rank(method="dense", ascending=False)
-        df = df[df["dense_rank"] <= 5][["countryterritoryCode", "dateRep", "cases"]]
+        df = df[df["dense_rank"] <= 5]
         df = df.sort_values(by="dateRep", ascending=False).reset_index(drop=True)
         return df
 

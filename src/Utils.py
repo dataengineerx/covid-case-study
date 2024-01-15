@@ -27,7 +27,7 @@ def write_to_delta_lake(df: pd.DataFrame, target_table: str, mode: str = "overwr
     try:
         # add load_date column to the dataframe from current timestamp
         df["load_date"] = pd.Timestamp.now().strftime("%Y-%m-%d")
-
+        df = df.astype(str) 
         write_deltalake(target_table, df, mode=mode)
 
     except Exception as e:
