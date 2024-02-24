@@ -12,25 +12,13 @@ RUN apt-get update \
 WORKDIR /app
 
 #copy all files from current directory to working directory
-COPY src/ ./src
-COPY test/ ./test
-COPY poetry.lock pyproject.toml ./
+COPY helloworld/ ./helloworld
+COPY helloworld/requirements.txt helloworld/requirements.txt
 
 #set PYTHONPATH for python location
 RUN export PYTHONPATH=/usr/local/lib/python3.11/
 
 RUN python --version
-
-#set poetry path
-ENV POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1 
-
-ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
-
-RUN curl -sSL https://install.python-poetry.org | python -
-
-RUN poetry install --no-dev
 
 #mkdir folder                                   
 RUN mkdir -p /app/data
@@ -39,5 +27,5 @@ RUN mkdir -p /app/data
 EXPOSE 8000
 
 #run the application
-CMD ["poetry", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "helloworld.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

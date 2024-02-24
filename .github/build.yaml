@@ -1,0 +1,16 @@
+on:
+  push:
+    branches: [feat/add-cloud-build]
+
+jobs: 
+  feat/add-cloud-build:
+    name: deploy cloudrun to feat/add-cloud-build environment
+    if: ${{ github.ref == 'refs/heads/feat/add-cloud-build' || github.base_ref == 'feat/add-cloud-build' }}
+    uses: ./.github/build.yaml
+    permissions: 
+      id-token: write
+      contents: read
+    with: 
+      environment: feat/add-cloud-build
+      ref: ${{ github.sha }}
+    secrets: inherit
